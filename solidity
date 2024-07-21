@@ -1,1 +1,61 @@
 
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract HotelRoom {
+    address public owner;
+    uint public roomPrice;
+    mapping(address => bool) public bookings;
+    mapping(address => uint) public bookingTimestamps;
+
+    event Booked(address indexed _guest, uint _timestamp);
+    event Cancelled(address indexed _guest, uint _timestamp);
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
+
+    modifier notBooked() {
+        require(bookings[msg.sender] == false, "Already booked");
+        _;
+    }
+
+    modifier booked() {
+        require(bookings[msg.sender] == true, "No booking found");
+        _;
+    }
+
+    constructor(uint _roomPrice) {
+        owner = msg.sender;
+        roomPrice = _roomPrice;
+    }
+
+    function bookRoom() public payable notBooked {
+        require(msg.value == roomPrice, "Incorrect value sent");
+
+        bookings[msg.sender] = true;
+        bookingTimestamps[msg.sender] = block.timestamp;
+
+        emit Booked(msg.sender, block.timestamp);
+    }
+
+    function cancelBooking() public booked {
+        bookings[msg.sender] = false;
+        uint refundAmount = roomPrice;
+
+        // Refunding the booking amount
+        payable(msg.sender).transfer(refundAmount);
+
+        emit Cancelled(msg.sender, block.timestamp);
+    }
+
+    function changeRoomPrice(uint _newPrice) public onlyOwner {
+        roomPrice = _newPrice;
+    }
+
+    function withdrawFunds() public onlyOwner {
+        uint balance = address(this).balance;
+        payable(owner).transfer(balance);
+    }
+}
